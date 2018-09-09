@@ -7,6 +7,25 @@
 - 自定义代理请求(中转服务器)
 - 在线端口监听查看请求、tcpdump查看数据包(ICMP、TCP、UDP)
 
+## 安装
+
+```
+# 修改配置文件
+vim config.py
+
+MYSQL_USER = 'root'
+MYSQL_PASSWORD = 'root'
+MYSQL_DB = 'tweb'
+...
+
+# 安装模块依赖
+pip install -r requirements.txt
+
+# 导入数据库(提前创建好数据库)
+mysql -uroot -p [database] < tweb.sql
+```
+
+## 语法
 ```
 host: {{host}}
 port: {{port}}
