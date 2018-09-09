@@ -1,0 +1,547 @@
+<!doctype html>
+<html lang="en">
+
+<head>
+    <!-- Required meta tags -->
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
+
+    <!-- Bootstrap CSS -->
+    <link rel="stylesheet" href="/static/css/bootstrap.min.css" crossorigin="anonymous">
+
+    <link rel="stylesheet" href="/static/css/all.css" integrity="sha384-O8whS3fhG2OnA5Kas0Y9l3cfpmYjapjI0E4theH4iuMD+pLhbf6JI0jIMfYcK3yZ"
+        crossorigin="anonymous">
+
+
+    <!-- 开发环境版本，包含了有帮助的命令行警告 -->
+    <script src="/static/js/vue.min.js"></script>
+
+    <title>TWeb</title>
+    <style>
+        body {
+            margin-top: 20px;
+            background: #32383e;
+        }
+
+        a {
+            color: #fff;
+        }
+
+        .modal-body {
+            max-height: 70vh;
+            overflow-y: auto;
+        }
+        
+        .pagination {
+            text-align: center;
+        }
+        .pagination a {
+            background: #32383e;
+            color: #fff;
+        }
+
+    </style>
+</head>
+
+
+
+<body>
+    <div class="container" id="app">
+        <h2 style="color: #fff;">{{ title }}</h2>
+
+        <div class="form-row">
+            <div class="form-group">
+                <div class="btn-group" role="group" aria-label="Basic example">
+                    <button data-toggle="modal" data-target="#addModal" class="btn btn-dark" title="Add Response">
+                        <i class="fas fa-plus-circle"></i>
+                    </button>
+                    <button data-toggle="modal" data-target="#fileModal" class="btn btn-dark" title="Generate Document">
+                        <i class="fas fa-file-alt"></i>
+                    </button>
+                    <button data-toggle="modal" data-target="#settingModal" class="btn btn-dark" title="Set Variables">
+                        <i class="fas fa-cogs"></i>
+                    </button>
+                    <button data-toggle="modal" data-target="#ncModal" class="btn btn-dark" title="NetCat View">
+                        <i class="fas fa-eye"></i>
+                    </button>
+                    <button data-toggle="modal" data-target="#tcpdumpModal" class="btn btn-dark" title="Tcpdump View">
+                        <i class="fas fa-exchange-alt"></i>
+                    </button>
+                    <button @click="refreshBtn" class="btn btn-dark">
+                        <i class="fas fa-sync-alt"></i>
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <div class="alert alert-dark" role="alert" v-if="showMsg && currentRule.method">
+            Click to visit
+            <a :href="currentRule.path" class="alert-link">{{ currentRule.path }}</a>
+            <button type="button" class="close" data-dismiss="alert" aria-label="Close">
+                <span aria-hidden="true">&times;</span>
+            </button>
+        </div>
+
+        <div class="table-responsive-md" v-if="rules.length">
+            <table class="table table-borderless table-dark">
+                <thead>
+                    <tr>
+                        <th scope="col">method</th>
+                        <th scope="col">path</th>
+                        <th scope="col">code</th>
+                        <th scope="col">body</th>
+                        <th scope="col">remote</th>
+                        <th scope="col">count</th>
+                        <th scope="col">operator</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr v-for="rule in rules">
+                        <td>{{ rule.method.join(", ") }}</td>
+                        <td>
+                            <a :href="rule.path">{{ rule.path }}</a>
+                        </td>
+                        <td>{{ rule.code }}</td>
+                        <td data-toggle="tooltip" data-placement="top" :title="rule.body">{{ rule.body | more(50) }}</td>
+                        <td v-if="rule.remote.url">{{ rule.remote.url | more }}</td>
+                        <td v-else="rule.remote"></td>
+                        <td>{{ rule.log_count }}</td>
+                        <td>
+                            <div class="btn-group" role="group" aria-label="Basic example">
+                                <button @click="viewLogBtn(rule)" data-target="logModal" class="btn btn-dark">
+                                    <i class="fas fa-eye"></i>
+                                </button>
+                                <button @click="updateRuleBtn(rule)" data-target="updateModal" class="btn btn-dark">
+                                    <i class="fas fa-edit"></i>
+                                </button>
+                                <button type="button" @click="delRuleBtn(rule)" class="btn btn-dark">
+                                    <i class="fas fa-trash-alt"></i>
+                                </button>
+                            </div>
+                        </td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+        
+        <h2 v-else style="color: #fff; text-align: center">无</h2>
+
+        <!-- logModal -->
+        <div class="modal fade" id="logModal" tabindex="-1" role="dialog" aria-labelledby="logModalLabel" aria-hidden="true">
+            <div class="modal-dialog modal-lg" role="document">
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h5 class="modal-title" id="logModalLabel">Log</h5>
+                        <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+                            <span aria-hidden="true">&times;</span>
+                        </button>
+                    </div>
+                    <div class="modal-body">
+                        <div class="table-responsive-md" v-if="logs && logs.length">
+                            <table class="table table-borderless">
+                                <thead>
+                                    <tr>
+                                        <th scope="col">method</th>
+                                        <th scope="col">path</th>
+                                        <th scope="col">ua</th>
+                                        <th scope="col">addr</th>
+                                        <th scope="col">time</th>
+                                        <th scope="col">operator</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <tr v-for="log in logs">
+                                        <td data-toggle="tooltip" data-placement="top" :title="log.request">{{ log.request.method
+                                            }}
+                                        </td>
+                                        <td>{{ log.request.query_string ? `${currentRule.path}?${log.request.query_string}`
+                                            : currentRule.path }}
+                                        </td>
+                                        <td>{{ log.request.headers['User-Agent'] | more(50) }}</td>
+                                        <td>{{ log.request.remote_addr }}</td>
+                                        <td>{{ log.request.time }}</td>
+                                        <td>
+                                            <div class="btn-group" role="group">
+                                                <button @click="delLog(log)" class="btn btn-danger">
+                                                    delete
+                                                </button>
+                                            </div>
+
+                                        </td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                        <h5 class="text-center" v-else>无</h5>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" @click="delAllLog(currentRule)" class="btn btn-danger">Delete All</button>
+                        <button type="button" class="btn btn-secondary" data-dismiss="modal">Close</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+
+        <!-- settingModal -->
+        <div class="modal fade" id="settingModal" tabindex="-1" role="dialog" aria-labelledby="settingModalLabel" aria-hidden="true">
+            <div class="modal-dialog modal-lg" role="document">
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h5 class="modal-title" id="settingModalLabel">Variable Setting</h5>
+                        <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+                            <span aria-hidden="true">&times;</span>
+                        </button>
+                    </div>
+                    <div class="modal-body">
+                        <div class="form-row" v-for="(v, index) in vars">
+                            <div class="form-group col-md-10">
+                                <input type="text" class="form-control" placeholder="variable name" v-model="v.name">
+                            </div>
+                            <div class="form-group col-md-2">
+                                <button type="button" @click="delVarsBtn(index)" class="btn btn-danger btn-block">
+                                    <i class="fas fa-trash-alt"></i>
+                                </button>
+                            </div>
+                            <div class="form-group col-md-12">
+                                <textarea v-model="v.value" class="form-control" rows="2"></textarea>
+                            </div>
+                        </div>
+                        <button type="button" @click="addVarsBtn" class="btn btn-success">Add Variables</button>
+
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" data-dismiss="modal">Close</button>
+                        <button type="button" @click="saveVars(vars)" class="btn btn-primary">Save changes</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+
+        <!-- ncModal -->
+        <div class="modal fade" id="ncModal" tabindex="-1" role="dialog" aria-labelledby="ncModalLabel" aria-hidden="true">
+            <div class="modal-dialog modal-lg" role="document">
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h5 class="modal-title" id="ncModalLabel">nc View</h5>
+                        <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+                            <span aria-hidden="true">&times;</span>
+                        </button>
+                    </div>
+                    <div class="modal-body">
+                        <div class="form-row">
+                            <div class="form-group col-md-4">
+                                <div class="input-group mb-3">
+                                    <div class="input-group-prepend">
+                                        <label class="input-group-text" for="inputGroupSelect01">Protocol</label>
+                                    </div>
+                                    <select class="custom-select" :disabled="ncStatus==1" v-model="ncProtocol">
+                                        <option value="tcp" selected>tcp</option>
+                                        <option value="udp">udp</option>
+                                    </select>
+                                </div>
+                            </div>
+                            <div class="form-group col-md-4">
+                                <div class="input-group mb-3">
+                                    <div class="input-group-prepend">
+                                        <label class="input-group-text" for="inputGroupSelect01">Port</label>
+                                    </div>
+                                    <input type="text" :disabled="ncStatus==1" class="form-control" v-model="ncPort" placeholder="port">
+                                </div>
+                            </div>
+                            <div class="form-group col-md-2">
+                                <input type="button" :class="ncStatus ? 'btn btn-block btn-danger' : 'btn btn-block btn-success'" @click="switchNc" :value="ncStatus ? 'stop': 'start'">
+                            </div>
+                            <div class="form-group col-md-2">
+                                <input type="button" class="btn btn-warning btn-block" @click="clearNcMessage" value="clear">
+                            </div>
+                        </div>
+                        <div class="card" v-if="ncMessage">
+                            <div class="card-body">
+                                <pre>{{ ncMessage }}</pre>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" data-dismiss="modal">Close</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+
+        <!-- tcpdumpModal -->
+        <div class="modal fade" id="tcpdumpModal" tabindex="-1" role="dialog" aria-labelledby="tcpdumpModalLabel" aria-hidden="true">
+            <div class="modal-dialog modal-lg" role="document">
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h5 class="modal-title" id="tcpdumpModalLabel">tcpdump View</h5>
+                        <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+                            <span aria-hidden="true">&times;</span>
+                        </button>
+                    </div>
+                    <div class="modal-body">
+                        <div class="form-row">
+
+                            <div class="form-group col-md-4">
+                                <div class="input-group mb-3">
+                                    <div class="input-group-prepend">
+                                        <label class="input-group-text" for="inputGroupSelect01">Protocol</label>
+                                    </div>
+                                    <select class="custom-select" v-model="tcpdumpProtocol" :disabled="tcpdumpStatus==1">
+                                        <option value="icmp" selected>icmp</option>
+                                        <option value="tcp">tcp</option>
+                                        <option value="udp">udp</option>
+                                    </select>
+                                </div>
+                            </div>
+
+                            <div class="form-group col-md-4">
+                                <div class="input-group mb-3">
+                                    <div class="input-group-prepend">
+                                        <label class="input-group-text" for="inputGroupSelect01">Interface</label>
+                                    </div>
+                                    <select class="custom-select" v-model="interface" :disabled="tcpdumpStatus==1">
+                                        <option selected>Choose...</option>
+                                        <option v-for="(val, interface, index) in interfaces" :value="interface">{{ interface
+                                            }} - {{ val.address }}</option>
+                                    </select>
+                                </div>
+                            </div>
+
+                            <div class="form-group col-md-2">
+                                <input type="button" :class="tcpdumpStatus ? 'btn btn-block btn-danger' : 'btn btn-block btn-success'" @click="switchTcpdump"
+                                    :value="tcpdumpStatus ? 'stop': 'start'">
+                            </div>
+                            <div class="form-group col-md-2">
+                                <input type="button" class="btn btn-warning btn-block" @click="clearTcpdumpMessage" value="clear">
+                            </div>
+                        </div>
+
+                        <div class="card" v-if="tcpdumpMessage">
+                            <div class="card-body">
+                                <pre>{{ tcpdumpMessage }}</pre>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" data-dismiss="modal">Close</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- ncModal -->
+        <div class="modal fade" id="msgModal" tabindex="-1" role="dialog" aria-labelledby="msgModalLabel" aria-hidden="true">
+            <div class="modal-dialog" role="document">
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h5 class="modal-title" id="msgModalLabel">Message</h5>
+                        <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+                            <span aria-hidden="true">&times;</span>
+                        </button>
+                    </div>
+                    <div class="modal-body">
+                        {{ message }}
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" data-dismiss="modal">Close</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- fileModal -->
+        <div class="modal fade" id="fileModal" tabindex="-1" role="dialog" aria-labelledby="fileModalLabel" aria-hidden="true">
+            <div class="modal-dialog modal-lg" role="document">
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h5 class="modal-title" id="addModalLabel">File</h5>
+                        <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+                            <span aria-hidden="true">&times;</span>
+                        </button>
+                    </div>
+                    <div class="modal-body">
+                        <div class="form-group">
+                            <label>payload</label>
+                            <textarea v-model="payload" class="form-control" rows="5"></textarea>
+                        </div>
+                        <div class="btn-group" role="group" aria-label="Basic example">
+                            <button class="btn btn-primary" @click="getFile('doc')">doc</button>
+                            <button class="btn btn-primary" @click="getFile('xlsx')">xlsx</button>
+                            <button class="btn btn-primary" @click="getFile('pptx')">pptx</button>
+                        </div>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" data-dismiss="modal">Close</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- addModal -->
+        <div class="modal fade" id="addModal" tabindex="-1" role="dialog" aria-labelledby="addModalLabel" aria-hidden="true">
+            <div class="modal-dialog" role="document">
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h5 class="modal-title" id="addModalLabel">Add</h5>
+                        <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+                            <span aria-hidden="true">&times;</span>
+                        </button>
+                    </div>
+                    <div class="modal-body">
+                        <div class="form-row">
+                            <div class="form-group col-md-4">
+                                <label>method</label>
+                                <input type="text" v-model="rule.method" class="form-control" placeholder="GET" required>
+                            </div>
+                            <div class="form-group col-md-4">
+                                <label>path</label>
+                                <input type="text" v-model="rule.path" class="form-control" placeholder="/" required>
+                            </div>
+                            <div class="form-group col-md-4">
+                                <label>code</label>
+                                <input type="text" v-model="rule.code" class="form-control" placeholder="200" required>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" data-dismiss="modal">Close</button>
+                        <button type="button" @click="addRuleBtn(rule)" class="btn btn-primary">Save changes</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Modal Structure -->
+        <div class="modal fade" id="updateModal" tabindex="-1" role="dialog" aria-labelledby="updateModalLabel" aria-hidden="true">
+            <div class="modal-dialog modal-lg" role="document">
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h5 class="modal-title" id="updateModalLabel">Update</h5>
+                        <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+                            <span aria-hidden="true">&times;</span>
+                        </button>
+                    </div>
+
+                    <div class="modal-body" v-if="currentRule.method">
+                        <div class="form-row">
+                            <div class="form-group col-md-4">
+                                <label>method</label>
+                                <input type="text" v-model="currentRule.method" class="form-control" placeholder="GET" required>
+                            </div>
+                            <div class="form-group col-md-4">
+                                <label>path</label>
+                                <input type="text" v-model="currentRule.path" class="form-control" placeholder="/" required>
+                            </div>
+                            <div class="form-group col-md-4">
+                                <label>code</label>
+                                <input type="text" v-model="currentRule.code" class="form-control" placeholder="200" required>
+                            </div>
+                        </div>
+
+                        <div class="form-group">
+                            <label>headers</label>
+                            <div class="form-row" v-for="(header, index) in currentRule.headers">
+                                <div class="form-group col-md-5">
+                                    <input type="text" class="form-control" placeholder="header name" v-model="header.name">
+                                </div>
+                                <div class="form-group col-md-5">
+                                    <input type="text" class="form-control" placeholder="header value" v-model="header.value">
+                                </div>
+                                <div class="form-group col-md-2">
+                                    <button type="button" @click="delHeaderBtn(index)" class="btn btn-danger btn-block">
+                                        <i class="fas fa-trash-alt"></i>
+                                    </button>
+                                </div>
+                            </div>
+                            <div class="form-group">
+                                <button type="button" @click="addHeaderBtn" class="btn btn-success">Add</button>
+                            </div>
+                        </div>
+                        <div class="form-group">
+                            <label>body</label>
+                            <textarea v-model="currentRule.body" class="form-control" rows="5"></textarea>
+                        </div>
+                        
+                        <hr />
+                        <h3>Remote</h3>
+                        <div class="form-group">
+                            <label>method</label>
+                            <input type="text" v-model="currentRule.remote.method" class="form-control" placeholder="method" required>
+                        </div>
+                        <div class="form-group">
+                            <label>url</label>
+                            <input type="text" v-model="currentRule.remote.url" class="form-control" placeholder="url: http://ip.cn / /etc/paswd" required>
+                        </div>
+                        <div class="form-group">
+                            <label>get</label>
+                            <input type="text" v-model="currentRule.remote.params" class="form-control" placeholder="a=1&b=2" required>
+                        </div>
+                        <div class="form-group">
+                            <label>post</label>
+                            <input type="text" v-model="currentRule.remote.data" class="form-control" placeholder="a=1&b=2" required>
+                        </div>
+                        <div class="form-group">
+                            <label>headers</label>
+                            <div class="form-row" v-for="(header, index) in currentRule.remote.headers">
+                                <div class="form-group col-md-5">
+                                    <input type="text" class="form-control" placeholder="header name" v-model="header.name">
+                                </div>
+                                <div class="form-group col-md-5">
+                                    <input type="text" class="form-control" placeholder="header value" v-model="header.value">
+                                </div>
+                                <div class="form-group col-md-2">
+                                    <button type="button" @click="delCurrentHeaderBtn(index)" class="btn btn-danger btn-block">
+                                        <i class="fas fa-trash-alt"></i>
+                                    </button>
+                                </div>
+                            </div>
+                            <div class="form-group">
+                                <button type="button" @click="addCurrentHeaderBtn" class="btn btn-success">Add</button>
+                            </div>
+                        </div>
+                        <div class="modal-footer">
+                            <button type="button" class="btn btn-secondary" data-dismiss="modal">Close</button>
+                            <button type="button" @click="saveRuleBtn(currentRule)" class="btn btn-primary">Save changes</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <!-- Modal -->
+        </div>
+        <!-- <nav>
+            <ul class="pagination justify-content-center">
+                <li class="page-item"><a class="page-link" href="javascript:void(0);">Previous</a></li>
+                <li class="page-item"><a class="page-link" href="javascript:void(0);">1</a></li>
+                <li class="page-item"><a class="page-link" href="javascript:void(0);">2</a></li>
+                <li class="page-item"><a class="page-link" href="javascript:void(0);">3</a></li>
+                <li class="page-item"><a class="page-link" href="javascript:void(0);">Next</a></li>
+            </ul>
+        </nav> -->
+    </div>
+
+    <script src="/static/js/axios.min.js"></script>
+    <!-- Optional JavaScript -->
+    <!-- jQuery first, then Popper.js, then Bootstrap JS -->
+    <script src="/static/js/jquery-3.3.1.slim.min.js" integrity="sha384-q8i/X+965DzO0rT7abK41JStQIAqVgRVzpbzo5smXKp4YfRvH+8abtTE1Pi6jizo"
+        crossorigin="anonymous"></script>
+    <script src="/static/js/popper.min.js" integrity="sha384-ZMP7rVo3mIykV+2+9J3UJ46jBk0WLaUAdn689aCwoqbBJiSnjAK/l8WvCWPIPm49"
+        crossorigin="anonymous"></script>
+    <script src="/static/js/bootstrap.min.js" integrity="sha384-o+RDsa0aLu++PJvFqy8fFScvbHFLtbvScb8AjopnFD+iEQ7wo/CG0xlczd+2O/em"
+        crossorigin="anonymous"></script>
+    <script type="text/javascript" src="/static/js/socket.io.min.js"></script>
+
+    <!-- <script src="/static/js/app.js"></script> -->
+
+    <script type="text/javascript" charset="utf-8">
+        var script = document.createElement("script")
+        script.src = "/static/js/app.js?=" + new Date().getTime()
+        document.body.appendChild(script)
+    </script>
+
+
+</body>
+
+</html>
