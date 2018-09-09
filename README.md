@@ -40,3 +40,12 @@ REQUEST_HEADERS_STR:
 'admin'|base64encode: {{ 'admin' | base64encode }}
 'admin'|base64decode: {{ 'admin' | base64decode }}
 ```
+
+## 预览
+![](https://i.loli.net/2018/09/10/5b954f0cac8f0.jpg)
+
+![](https://i.loli.net/2018/09/10/5b954fc3bc24d.jpg
+)
+
+![](https://i.loli.net/2018/09/10/5b95500f49cdd.jpg
+)
